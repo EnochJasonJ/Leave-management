@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url = env("DATABASE_URL")
+}
+
+enum Role {
+  PRINCIPAL
+  HOD
+  STAFF
+  STUDENT
+}
+
+enum LeaveStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+model Department {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String?
+  name         String
+  role         Role
+  departmentId Int?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  isActive     Boolean  @default(false)
+  inviteToken  String?
+  phone        String?
+  batch        String?
+  address      String?
+  rollNumber   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  leaveRequests LeaveRequest[]
+  createdAssignments Assignment[] @relation("CreatedAssignments")
+  submissions       AssignmentSubmission[] @relation("StudentSubmissions")
+}
+
+model LeaveRequest {
+  id          Int         @id @default(autoincrement())
+  userId      Int
+  user        User        @relation(fields: [userId], references: [id])
+  type        String
+  startDate   DateTime
+  endDate     DateTime
+  reason      String      @db.Text
+  status      LeaveStatus @default(DRAFT)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Assignment {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String   @db.Text
+  dueDate     DateTime
+  creatorId   Int
+  creator     User     @relation("CreatedAssignments", fields: [creatorId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int
+  assignment   Assignment @relation(fields: [assignmentId], references: [id])
+  studentId    Int
+  student      User       @relation("StudentSubmissions", fields: [studentId], references: [id])
+  fileUrl      String?
+  notes        String?    @db.Text
+  status       String     @default("SUBMITTED") // SUBMITTED, GRADED
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assignmentId, studentId])
+}

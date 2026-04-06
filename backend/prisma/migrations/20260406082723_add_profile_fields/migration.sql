@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `address` VARCHAR(191) NULL,
+    ADD COLUMN `batch` VARCHAR(191) NULL,
+    ADD COLUMN `phone` VARCHAR(191) NULL,
+    ADD COLUMN `rollNumber` VARCHAR(191) NULL;
