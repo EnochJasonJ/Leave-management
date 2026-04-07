@@ -11,10 +11,11 @@ import { authorize } from '../middlewares/roleMiddleware.js';
 
 const router = Router();
 
-// Student/Staff common routes
-router.use(authenticate);
+// ✅ FIXED: Only students can create leave requests
+router.post('/', authenticate, authorize(['STUDENT']), createLeaveRequest);
 
-router.post('/', createLeaveRequest);
+// Everyone can view their own history and stats
+router.use(authenticate);
 router.get('/history', getMyLeaveHistory);
 router.get('/stats', getDashboardStats);
 

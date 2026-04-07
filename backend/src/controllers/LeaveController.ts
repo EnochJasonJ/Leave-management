@@ -1,14 +1,14 @@
 import type { Response } from 'express';
-import { PrismaClient, LeaveStatus } from '@prisma/client';
+import { LeaveStatus } from '@prisma/client';
 import type { AuthRequest } from '../middlewares/authMiddleware.js';
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL!,
-    },
-  },
-});
+import prisma from '../lib/prisma.js';
+import {
+  validateLeaveType,
+  validateDate,
+  validateDateRange,
+  validateReason,
+  sanitizeReason,
+} from '../utils/validation.js';
 
 export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
   try {
@@ -19,12 +19,38 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
+    // Input validation
+    if (!type || !startDate || !endDate || !reason) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    if (!validateLeaveType(type)) {
+      return res.status(400).json({ message: 'Invalid leave type' });
+    }
+
+    if (!validateDate(startDate) || !validateDate(endDate)) {
+      return res.status(400).json({ message: 'Invalid date format' });
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+
+    if (!validateDateRange(start, end)) {
+      return res.status(400).json({ message: 'Start date must be before end date and cannot be in the past' });
+    }
+
+    if (!validateReason(reason)) {
+      return res.status(400).json({ message: 'Reason must be provided and less than 2000 characters' });
+    }
+
+    const sanitizedReason = sanitizeReason(reason);
+
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
         type,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        reason,
+        startDate: start,
+        endDate: end,
+        reason: sanitizedReason,
         userId,
         status: LeaveStatus.SUBMITTED,
       },
@@ -32,7 +58,8 @@ export const createLeaveRequest = async (req: AuthRequest, res: Response) => {
 
     res.status(201).json({ message: 'Leave request submitted successfully', leaveRequest });
   } catch (error) {
-    res.status(500).json({ message: 'Error creating leave request', error: String(error) });
+    console.error('Error creating leave request:', error);
+    res.status(500).json({ message: 'An error occurred while creating leave request' });
   }
 };
 
@@ -51,7 +78,8 @@ export const getMyLeaveHistory = async (req: AuthRequest, res: Response) => {
 
     res.json(leaves);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching leave history', error: String(error) });
+    console.error('Error fetching leave history:', error);
+    res.status(500).json({ message: 'An error occurred while fetching leave history' });
   }
 };
 
@@ -68,16 +96,29 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
     const pending = await prisma.leaveRequest.count({ where: { userId, status: LeaveStatus.SUBMITTED } });
     const rejected = await prisma.leaveRequest.count({ where: { userId, status: LeaveStatus.REJECTED } });
 
-    // Calculate dynamic leave breakdowns
-    const casualUsed = await prisma.leaveRequest.count({ where: { userId, type: 'Casual Leave', status: LeaveStatus.APPROVED } });
-    const sickUsed = await prisma.leaveRequest.count({ where: { userId, type: 'Sick Leave', status: LeaveStatus.APPROVED } });
-    const specialUsed = await prisma.leaveRequest.count({ where: { userId, type: 'Special Leave', status: LeaveStatus.APPROVED } });
+    // Fetch all approved leaves to calculate actual days
+    const approvedLeaves = await prisma.leaveRequest.findMany({
+      where: { userId, status: LeaveStatus.APPROVED },
+      select: { startDate: true, endDate: true, type: true },
+    });
 
-    // --- Attendance & Internal Marks Calculation ---
-    const totalWorkingDays = 120; // Approximate working days in a semester
-    const approvedLeaveDays = casualUsed + sickUsed + specialUsed;
+    // Calculate actual leave days and breakdown
+    let casualDays = 0,
+      sickDays = 0,
+      specialDays = 0;
+
+    approvedLeaves.forEach((leave) => {
+      const dayCount = Math.ceil((leave.endDate.getTime() - leave.startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (leave.type === 'Casual Leave') casualDays += dayCount;
+      else if (leave.type === 'Sick Leave') sickDays += dayCount;
+      else if (leave.type === 'Special Leave') specialDays += dayCount;
+    });
+
+    // Attendance calculation
+    const totalWorkingDays = 120;
+    const approvedLeaveDays = casualDays + sickDays + specialDays;
     const daysPresent = totalWorkingDays - approvedLeaveDays;
-    const attendancePercent = Math.min(100, Math.round((daysPresent / totalWorkingDays) * 100));
+    const attendancePercent = Math.min(100, Math.round((Math.max(0, daysPresent) / totalWorkingDays) * 100));
 
     // Attendance mark out of 5
     let attendanceMark = 0;
@@ -102,13 +143,13 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       pending,
       rejected,
       breakdown: {
-        casual: { total: 15, used: casualUsed },
-        sick: { total: 10, used: sickUsed },
-        special: { total: 5, used: specialUsed },
+        casual: { total: 15, used: casualDays },
+        sick: { total: 10, used: sickDays },
+        special: { total: 5, used: specialDays },
       },
       attendance: {
         totalWorkingDays,
-        daysPresent,
+        daysPresent: Math.max(0, daysPresent),
         approvedLeaveDays,
         attendancePercent,
         attendanceMark,
@@ -122,29 +163,63 @@ export const getDashboardStats = async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching stats', error: String(error) });
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ message: 'An error occurred while fetching dashboard stats' });
   }
 };
 
 export const getAllLeaveRequests = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.id;
+    const userRole = req.user?.role;
 
     if (!userId) {
       return res.status(401).json({ message: 'User not authenticated' });
     }
 
-    const leaves = await prisma.leaveRequest.findMany({
-      where: {
+    // Get user's department
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true, role: true },
+    });
+
+    if (!currentUser) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // ✅ FIX: Only show leaves from own department (not all users)
+    let whereClause: any = {};
+
+    if (userRole === 'PRINCIPAL') {
+      // Principal can see all leaves
+      whereClause = { userId: { not: userId } };
+    } else if (userRole === 'HOD' && currentUser.departmentId) {
+      // HOD can only see leaves from their department
+      whereClause = {
         userId: { not: userId },
-      },
-      include: { user: { select: { name: true, email: true, role: true } } },
+        user: { departmentId: currentUser.departmentId },
+      };
+    } else if (userRole === 'STAFF' && currentUser.departmentId) {
+      // Staff can see leaves from their department
+      whereClause = {
+        userId: { not: userId },
+        user: { departmentId: currentUser.departmentId },
+      };
+    } else {
+      // Students shouldn't see other leaves
+      return res.status(403).json({ message: 'Forbidden: Students cannot view other leave requests' });
+    }
+
+    const leaves = await prisma.leaveRequest.findMany({
+      where: whereClause,
+      include: { user: { select: { name: true, email: true, role: true, department: { select: { name: true } } } } },
       orderBy: { createdAt: 'desc' },
     });
 
     res.json(leaves);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching all leave requests', error: String(error) });
+    console.error('Error fetching all leave requests:', error);
+    res.status(500).json({ message: 'An error occurred while fetching leave requests' });
   }
 };
 
@@ -152,14 +227,61 @@ export const updateLeaveStatus = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
+
+    // Validate status
+    const validStatuses = ['APPROVED', 'REJECTED', 'UNDER_REVIEW'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const leaveId = parseInt(id!);
+    if (isNaN(leaveId)) {
+      return res.status(400).json({ message: 'Invalid leave ID' });
+    }
+
+    // Fetch the leave request
+    const leave = await prisma.leaveRequest.findUnique({
+      where: { id: leaveId },
+      include: { user: { select: { departmentId: true } } },
+    });
+
+    if (!leave) {
+      return res.status(404).json({ message: 'Leave request not found' });
+    }
+
+    // ✅ FIX: Add authorization check - can only approve leaves in their department
+    const approver = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true, role: true },
+    });
+
+    if (!approver) {
+      return res.status(404).json({ message: 'Approver not found' });
+    }
+
+    // Check authorization
+    if (approver.role === 'STAFF' || approver.role === 'HOD') {
+      if (approver.departmentId !== leave.user.departmentId) {
+        return res.status(403).json({ message: 'Forbidden: You can only approve leaves from your department' });
+      }
+    } else if (approver.role !== 'PRINCIPAL') {
+      return res.status(403).json({ message: 'Forbidden: You cannot approve leave requests' });
+    }
 
     const leaveRequest = await prisma.leaveRequest.update({
-      where: { id: parseInt(id!) },
+      where: { id: leaveId },
       data: { status },
     });
 
     res.json({ message: `Leave request ${status.toLowerCase()} successfully`, leaveRequest });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating leave status', error: String(error) });
+    console.error('Error updating leave status:', error);
+    res.status(500).json({ message: 'An error occurred while updating leave status' });
   }
 };

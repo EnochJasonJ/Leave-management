@@ -9,33 +9,36 @@ import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import ApproveLeavesPage from './pages/ApproveLeavesPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
 
 function App() {
   return (
-    <AuthProvider>
-      <Toaster position="top-right" reverseOrder={false} />
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
+    <ErrorBoundary>
+      <AuthProvider>
+        <Toaster position="top-right" reverseOrder={false} />
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected Routes */}
-          <Route element={<ProtectedRoute />}>
-            <Route element={<MainLayout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/apply-leave" element={<LeaveRequestPage />} />
-              <Route path="/leave-history" element={<LeaveHistoryPage />} />
-              <Route path="/approve-leaves" element={<ApproveLeavesPage />} />
-              <Route path="/assignments" element={<AssignmentPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
+            {/* Protected Routes */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<MainLayout />}>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/apply-leave" element={<LeaveRequestPage />} />
+                <Route path="/leave-history" element={<LeaveHistoryPage />} />
+                <Route path="/approve-leaves" element={<ApproveLeavesPage />} />
+                <Route path="/assignments" element={<AssignmentPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+              </Route>
             </Route>
-          </Route>
 
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

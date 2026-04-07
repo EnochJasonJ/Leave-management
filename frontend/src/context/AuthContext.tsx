@@ -22,11 +22,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
+    // ✅ FIXED: Restore auth state from localStorage on app load
     const savedUser = localStorage.getItem('lms_user');
     const savedToken = localStorage.getItem('lms_token');
+    
     if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser));
-      setToken(savedToken);
+      try {
+        setUser(JSON.parse(savedUser));
+        setToken(savedToken);
+      } catch (error) {
+        // If parsing fails, clear invalid data
+        localStorage.removeItem('lms_user');
+        localStorage.removeItem('lms_token');
+      }
     }
   }, []);
 

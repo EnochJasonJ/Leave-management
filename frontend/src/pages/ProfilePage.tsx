@@ -1,4 +1,4 @@
-import { User, Mail, Phone, MapPin, Building, GraduationCap, Edit2, Shield, Loader2, Check, X } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building, GraduationCap, Edit2, Shield, Loader2, Check, X,  } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '../services/api';
@@ -33,13 +33,44 @@ const ProfilePage = () => {
   }, []);
 
   const handleSave = async () => {
+    // ✅ FIXED: Add input validation
+    if (!editForm.name || editForm.name.trim().length === 0) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+
+    if (editForm.name.length > 255) {
+      toast.error('Name must not exceed 255 characters');
+      return;
+    }
+
+    if (editForm.phone && editForm.phone.length > 20) {
+      toast.error('Phone number must not exceed 20 characters');
+      return;
+    }
+
+    if (editForm.address && editForm.address.length > 500) {
+      toast.error('Address must not exceed 500 characters');
+      return;
+    }
+
+    if (editForm.batch && editForm.batch.length > 50) {
+      toast.error('Batch must not exceed 50 characters');
+      return;
+    }
+
+    if (editForm.rollNumber && editForm.rollNumber.length > 50) {
+      toast.error('Roll number must not exceed 50 characters');
+      return;
+    }
+
     try {
       const response = await api.put('/auth/me', editForm);
       setProfileData(response.data);
       setIsEditing(false);
       toast.success('Profile updated successfully');
-    } catch (error) {
-      toast.error('Failed to update profile');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update profile');
     }
   };
 

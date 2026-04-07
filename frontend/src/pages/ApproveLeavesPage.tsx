@@ -17,7 +17,7 @@ const ApproveLeavesPage = () => {
   const fetchRequests = async () => {
     try {
       const response = await api.get('/leaves/all');
-      setRequests(response.data);
+      setRequests(response.data || []);
     } catch (error) {
       toast.error('Failed to fetch leave requests');
     } finally {
@@ -34,8 +34,8 @@ const ApproveLeavesPage = () => {
       await api.put(`/leaves/${id}/status`, { status });
       toast.success(`Request ${status.toLowerCase()} successfully`);
       fetchRequests();
-    } catch (error) {
-      toast.error('Failed to update status');
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update status');
     }
   };
 
@@ -55,7 +55,7 @@ const ApproveLeavesPage = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        {requests.length > 0 ? requests.map((req: any) => (
+        {requests && requests.length > 0 ? requests.map((req: any) => (
           <div key={req.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 hover:shadow-md transition-shadow">
             <div className="flex items-start gap-4">
               <div className="h-12 w-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 shrink-0">
@@ -63,20 +63,22 @@ const ApproveLeavesPage = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-bold text-gray-900">{req.user.name}</h4>
+                  <h4 className="font-bold text-gray-900">{req.user?.name || 'Unknown User'}</h4>
                   <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-[10px] font-bold uppercase rounded tracking-wider">
-                    {req.user.role}
+                    {req.user?.role || 'N/A'}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500 line-clamp-1 mb-2">{req.reason}</p>
+                <p className="text-sm text-gray-500 line-clamp-1 mb-2">{req.reason || 'No reason provided'}</p>
                 <div className="flex flex-wrap gap-4 text-xs text-gray-400">
                   <div className="flex items-center gap-1">
                     <Calendar size={14} />
-                    <span>{new Date(req.startDate).toLocaleDateString()} - {new Date(req.endDate).toLocaleDateString()}</span>
+                    <span>
+                      {req.startDate ? new Date(req.startDate).toLocaleDateString() : 'N/A'} - {req.endDate ? new Date(req.endDate).toLocaleDateString() : 'N/A'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Clock size={14} />
-                    <span>Applied: {new Date(req.createdAt).toLocaleDateString()}</span>
+                    <span>Applied: {req.createdAt ? new Date(req.createdAt).toLocaleDateString() : 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -104,7 +106,7 @@ const ApproveLeavesPage = () => {
                 <span className={`px-4 py-2 rounded-lg text-sm font-bold border ${
                   req.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'
                 }`}>
-                  {req.status}
+                  {req.status || 'Unknown'}
                 </span>
               )}
             </div>

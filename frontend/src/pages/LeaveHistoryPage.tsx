@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { 
@@ -18,12 +18,14 @@ import toast from 'react-hot-toast';
 const LeaveHistoryPage = () => {
   const [leaves, setLeaves] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         const response = await api.get('/leaves/history');
-        setLeaves(response.data);
+        setLeaves(response.data || []);
       } catch (error) {
         toast.error('Failed to fetch leave history');
       } finally {
@@ -32,6 +34,20 @@ const LeaveHistoryPage = () => {
     };
     fetchHistory();
   }, []);
+
+  // ✅ FIXED: Implement search and filter logic
+  const filteredLeaves = useMemo(() => {
+    return leaves.filter((leave: any) => {
+      const matchesSearch = 
+        leave.type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        leave.reason?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        leave.id?.toString().includes(searchTerm);
+      
+      const matchesFilter = statusFilter === 'ALL' || leave.status === statusFilter;
+      
+      return matchesSearch && matchesFilter;
+    });
+  }, [leaves, searchTerm, statusFilter]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -63,14 +79,14 @@ const LeaveHistoryPage = () => {
     const tableColumn = ["ID", "Type", "Duration", "Applied On", "Status", "Reason"];
     const tableRows: any[] = [];
 
-    leaves.forEach((leave: any) => {
+    filteredLeaves.forEach((leave: any) => {
       const leaveData = [
         `LR-${String(leave.id).padStart(4, '0')}`,
-        leave.type,
-        `${new Date(leave.startDate).toLocaleDateString()} to ${new Date(leave.endDate).toLocaleDateString()}`,
-        new Date(leave.createdAt).toLocaleDateString(),
-        leave.status,
-        leave.reason
+        leave.type || 'N/A',
+        `${leave.startDate ? new Date(leave.startDate).toLocaleDateString() : 'N/A'} to ${leave.endDate ? new Date(leave.endDate).toLocaleDateString() : 'N/A'}`,
+        leave.createdAt ? new Date(leave.createdAt).toLocaleDateString() : 'N/A',
+        leave.status || 'Unknown',
+        leave.reason || 'No reason'
       ];
       tableRows.push(leaveData);
     });
@@ -120,15 +136,23 @@ const LeaveHistoryPage = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="text" 
-              placeholder="Search by ID, type or status..."
+              placeholder="Search by type, reason or ID..."
               className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex gap-2">
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-              <Filter size={18} />
-              Filter
-            </button>
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <option value="ALL">All Status</option>
+              <option value="SUBMITTED">Submitted</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
           </div>
         </div>
 
@@ -145,7 +169,7 @@ const LeaveHistoryPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {leaves.length > 0 ? leaves.map((leave: any) => (
+              {filteredLeaves.length > 0 ? filteredLeaves.map((leave: any) => (
                 <tr key={leave.id} className="hover:bg-gray-50/50 transition-colors group">
                   <td className="px-6 py-4 text-sm font-bold text-blue-600">LR-{String(leave.id).padStart(4, '0')}</td>
                   <td className="px-6 py-4">
@@ -153,19 +177,19 @@ const LeaveHistoryPage = () => {
                       <div className="p-1.5 rounded-lg bg-gray-100 text-gray-500">
                         <FileText size={14} />
                       </div>
-                      <span className="text-sm font-medium text-gray-900">{leave.type}</span>
+                      <span className="text-sm font-medium text-gray-900">{leave.type || 'Unknown'}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-600">
                     <div className="text-xs text-gray-400">
-                      {new Date(leave.startDate).toLocaleDateString()} to {new Date(leave.endDate).toLocaleDateString()}
+                      {leave.startDate ? new Date(leave.startDate).toLocaleDateString() : 'N/A'} to {leave.endDate ? new Date(leave.endDate).toLocaleDateString() : 'N/A'}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{new Date(leave.createdAt).toLocaleDateString()}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">{leave.createdAt ? new Date(leave.createdAt).toLocaleDateString() : 'N/A'}</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(leave.status)}`}>
                       {getStatusIcon(leave.status)}
-                      {leave.status}
+                      {leave.status || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -176,7 +200,7 @@ const LeaveHistoryPage = () => {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">No leave history found</td>
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-400">No leave requests matching your search</td>
                 </tr>
               )}
             </tbody>
@@ -184,7 +208,7 @@ const LeaveHistoryPage = () => {
         </div>
         
         <div className="p-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between text-sm text-gray-500">
-          <span>Showing {leaves.length} requests</span>
+          <span>Showing {filteredLeaves.length} of {leaves.length} requests</span>
         </div>
       </div>
     </div>
