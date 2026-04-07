@@ -17,7 +17,8 @@ const PORT = process.env.PORT || 5001;
 // ✅ FIXED: Proper CORS configuration
 const frontendOrigins = [
   ...(process.env.FRONTEND_URL ? process.env.FRONTEND_URL.split(',').map((url) => url.trim()) : ['http://localhost:5173']),
-  'http://localhost:5174'
+  'http://localhost:5174',
+  "leave-management-gzcj-8yi34fwgf-enoch-jason-js-projects.vercel.app",
 ];
 
 app.use(cors({
