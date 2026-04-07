@@ -1,4 +1,4 @@
-import { User, Mail, Phone, MapPin, Building, GraduationCap, Edit2, Shield, Loader2, Check, X,  } from 'lucide-react';
+import { Mail, Phone, MapPin, Building, GraduationCap, Edit2, Shield, Loader2, Check, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 import api from '../services/api';
@@ -120,7 +120,7 @@ const ProfilePage = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
             <div className="relative inline-block">
               <div className="h-24 w-24 bg-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold mx-auto mb-4 shadow-xl shadow-blue-600/20">
-                {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                {user.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
               </div>
               <div className="absolute right-0 bottom-0 bg-white p-1.5 rounded-full shadow-sm border border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors">
                 <Edit2 size={14} className="text-blue-500" />

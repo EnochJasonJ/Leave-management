@@ -1,10 +1,12 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 
 interface User {
   id: number;
   email: string;
   role: 'PRINCIPAL' | 'HOD' | 'STAFF' | 'STUDENT';
   name: string;
+  departmentId?: number;
 }
 
 interface AuthContextType {

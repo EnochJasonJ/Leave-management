@@ -5,8 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --exec tsx src/index.ts"
+    "dev": "prisma migrate deploy && prisma db seed && nodemon --exec tsx src/index.ts",
+    "start": "prisma migrate deploy && prisma db seed && tsx src/index.ts",
+    "deploy": "npm run migrate:deploy && npm run seed",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "prisma db seed"
   },
+  "postinstall": "prisma generate",
   "keywords": [],
   "author": "",
   "license": "ISC",
