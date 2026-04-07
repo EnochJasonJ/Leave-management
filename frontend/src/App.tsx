@@ -8,6 +8,7 @@ import AssignmentPage from './pages/AssignmentPage';
 import ProfilePage from './pages/ProfilePage';
 import LoginPage from './pages/LoginPage';
 import ApproveLeavesPage from './pages/ApproveLeavesPage';
+import UserManagementPage from './pages/UserManagementPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider } from './context/AuthContext';
@@ -31,6 +32,7 @@ function App() {
                 <Route path="/approve-leaves" element={<ApproveLeavesPage />} />
                 <Route path="/assignments" element={<AssignmentPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/users" element={<UserManagementPage />} />
               </Route>
             </Route>
 

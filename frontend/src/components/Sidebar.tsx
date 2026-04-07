@@ -8,7 +8,8 @@ import {
   LogOut,
   Calendar,
   Settings,
-  ClipboardCheck
+  ClipboardCheck,
+  Users
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,6 +38,9 @@ const Sidebar = ({ isOpen, setIsOpen }: SidebarProps) => {
     ] : []),
     ...(user?.role !== 'STUDENT' ? [
       { icon: ClipboardCheck, label: 'Approve Leaves', path: '/approve-leaves' },
+    ] : []),
+    ...(user?.role === 'PRINCIPAL' || user?.role === 'HOD' ? [
+      { icon: Users, label: 'User Management', path: '/users' },
     ] : []),
     { icon: BookOpen, label: user?.role === 'STUDENT' ? 'Assignments' : 'Manage Assignments', path: '/assignments' },
     { icon: User, label: 'Profile', path: '/profile' },

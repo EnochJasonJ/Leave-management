@@ -7,6 +7,7 @@ import prisma from './lib/prisma.js';
 import authRoutes from './routes/auth.js';
 import leaveRoutes from './routes/leaveRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ app.use((err: any, req: Request, res: Response, next: any) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/leaves', leaveRoutes);
 app.use('/api/assignments', assignmentRoutes);
+app.use('/api/users', userRoutes);
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Leave Management System API is running.');

@@ -5,7 +5,7 @@ export const validateEmail = (email: string): boolean => {
 };
 
 export const validatePassword = (password: string): boolean => {
-  return password && password.length >= 6 && password.length <= 255;
+  return typeof password === 'string' && password.length >= 6 && password.length <= 255;
 };
 
 export const validateLeaveType = (type: string): boolean => {
@@ -23,13 +23,13 @@ export const validateDateRange = (startDate: Date, endDate: Date): boolean => {
 };
 
 export const validateReason = (reason: string): boolean => {
-  return reason && reason.trim().length > 0 && reason.length <= 2000;
+  return typeof reason === 'string' && reason.trim().length > 0 && reason.length <= 2000;
 };
 
 export const validateAssignmentInput = (title: string, description: string, dueDate: string): boolean => {
   return (
-    title && title.trim().length > 0 && title.length <= 255 &&
-    description && description.length <= 5000 &&
+    typeof title === 'string' && title.trim().length > 0 && title.length <= 255 &&
+    typeof description === 'string' && description.length <= 5000 &&
     validateDate(dueDate) &&
     new Date(dueDate) > new Date()
   );
